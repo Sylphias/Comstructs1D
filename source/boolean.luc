@@ -1,0 +1,17 @@
+module boolean(
+    input a[8], //8-bit input
+    input b[8],
+    input c[2],
+    output out[8] //8-bit output
+  ) {
+
+  always {
+  
+    case(c[1:0]){
+      1: out = a ^ b;//xor
+      2: out = a & b;//and
+      3: out = a | b;//or   
+      default: out = 0;
+    }
+  }
+}
