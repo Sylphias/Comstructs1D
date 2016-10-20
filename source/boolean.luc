@@ -25,8 +25,6 @@ module boolean (
       4b0111: out = ~(a&b); //nand
       4b1111: out = 8b11111111; //1
       default: out=0;      
-      
-            
     }
   }
 }
