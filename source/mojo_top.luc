@@ -1,0 +1,114 @@
+module mojo_top (
+    input clk,              // 50MHz clock
+    input rst_n,            // reset button (active low)
+    output led [8],         // 8 user controllable LEDs
+    input cclk,             // configuration clock, AVR ready when high
+    output spi_miso,        // AVR SPI MISO
+    input spi_ss,           // AVR SPI Slave Select
+    input spi_mosi,         // AVR SPI MOSI
+    input spi_sck,          // AVR SPI Clock
+    output spi_channel [4], // AVR general purpose pins (used by default to select ADC channel)
+    input avr_tx,           // AVR TX (FPGA RX)
+    output avr_rx,          // AVR RX (FPGA TX)
+    input avr_rx_busy,      // AVR RX buffer full
+    output io_led [3][8],   // LEDs on IO Shield 
+    output io_seg [8],      // 7-segment LEDs on IO Shield
+    output io_sel [4],      // Digit select on IO Shield
+    input io_button [5],    // 5 buttons on IO Shield
+    input io_dip [3][8]     // DIP switches on IO Shield
+  ) {
+  
+  sig rst;                  // reset signal
+  
+  
+  multi_seven_seg seven;
+  
+  alu alu;
+  faultyalu faultyalu;
+  tester tester;
+  sig dispout[12];
+  sig dispa[8];
+  sig dispb[8];
+  sig dispc[8];
+  
+  .clk(clk) {
+    // The reset conditioner is used to synchronize the reset signal to the FPGA
+    // clock. This ensures the entire FPGA comes out of reset at the same time.
+    reset_conditioner reset_cond;
+  }
+  
+  
+  
+  always {
+    reset_cond.in = ~rst_n; // input raw inverted reset signal
+    rst = reset_cond.out;   // conditioned reset8
+    
+    led = 8h00;             // turn LEDs off
+    spi_miso = bz;          // not using SPI
+    spi_channel = bzzzz;    // not using flags
+    avr_rx = bz;            // not using serial port
+    
+    io_led = 3x{{8h00}};    // turn LEDs off
+    io_seg = 8hff;          // turn segments off
+    io_sel = 4hf;           // select no digits
+    
+    alu.a=io_dip[0][7:0]; //alu input a
+    alu.b=io_dip[1][7:0]; //alu input b
+    alu.c=io_dip[2][5:0]; //alu input c - opcodes
+    
+    faultyalu.a=io_dip[0][7:0]; //alu input a
+    faultyalu.b=io_dip[1][7:0]; //alu input b
+    faultyalu.c=io_dip[2][5:0]; //alu input c - opcodes
+    
+    tester.clk = clk;
+    tester.rst = rst;
+    tester.faulty = io_dip[2][6]; //input whether using faulty alu
+    
+    seven.clk = clk;
+    seven.rst = rst;
+    seven.values = {4he,4he,4he,4he};
+    
+    if (io_dip[2][7] == 0){ //normal operation
+      if (io_dip[2][6] == 0){ //working ALU
+        dispout[10:0] = alu.out[10:0]; //[10:8] represents zvn
+      }
+      else{ //FAULTY ALU
+        dispout[10:0] = faultyalu.out[10:0]; //[10:8] represents zvn
+      }
+      
+      dispout[11] = 0;
+      dispa = io_dip[0][7:0];
+      dispb = io_dip[1][7:0];
+      dispc = io_dip[2][7:0];
+    }
+    else{ //tester
+      dispout[11:0] = tester.out[11:0];
+      dispa = tester.outa;
+      dispb = tester.outb;
+      dispc = tester.outc;
+    }
+    
+    io_led[0][7:0] = dispa;
+    io_led[1][7:0] = dispb;
+    io_led[2][7:0] = dispout[7:0]; 
+    led[5:0] = dispc[5:0];
+    led[7] = io_dip[2][7];
+    led[6] = io_dip[2][6];
+    
+    if (dispout[11] == 1){
+      seven.values[3] = 4hd;
+    }
+    if (dispout[10] == 1){
+      seven.values[2] = 4hc;
+    }
+    if (dispout[9] == 1){
+      seven.values[1] = 4hb;
+    }
+    if (dispout[8] == 1){
+      seven.values[0] = 4ha;
+    }
+
+    io_seg = ~seven.seg;
+    io_sel = ~seven.sel;
+  }
+}

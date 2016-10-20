@@ -12,10 +12,12 @@ module adder (
     if (c) { //IF SUBTRACT, SUBTRACT
       xb = ~b; // invert b
       d = a-b;
+      
     }
     else { //ELSE ADD
       xb = b; // do not invert b
       d = a+b; 
+                  
     }
     
     if (d[7:0] == 8b00000000){ //z
